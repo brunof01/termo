@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termo — Termo, Dueto e Quarteto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #1B2430;
+    --panel: #232C3D;
+    --panel-2: #2B3549;
+    --cream: #F1EAD9;
+    --cream-dim: #B9C0CE;
+    --correct: #3F7859;
+    --present: #C98A3B;
+    --absent: #3A4152;
+    --stamp: #C1443A;
+    --tile: 56px;
+    --gap: 6px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(193,68,58,0.10), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(76,122,94,0.10), transparent 40%),
+      var(--ink);
+    color: var(--cream);
+    font-family: 'Inter', system-ui, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 22px 14px 40px;
+  }
+
+  .app{ width:100%; max-width: 720px; display:flex; flex-direction:column; align-items:center; }
+
+  /* ---------- Header ---------- */
+  header{ text-align:center; margin-bottom: 14px; }
+
+  .title{
+    font-family:'Bitter', serif;
+    font-weight:800;
+    font-size: 44px;
+    letter-spacing: 2px;
+    margin: 0;
+    color: var(--cream);
+  }
+  .title .stamp-o{ color: var(--stamp); }
+
+  .subtitle{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--cream-dim);
+    margin: 4px 0 14px;
+    letter-spacing: 0.5px;
+  }
+
+  .legend{
+    display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+    font-size:12px; color:var(--cream-dim); margin-bottom: 16px;
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .chip{
+    width:16px; height:16px; border-radius:3px; display:inline-block;
+    border:1px solid rgba(255,255,255,0.15);
+  }
+  .chip.correct{ background: var(--correct); }
+  .chip.present{ background: var(--present); }
+  .chip.absent{ background: var(--absent); }
+
+  /* ---------- Tabs ---------- */
+  .tabs{
+    display:flex; gap:4px; margin-bottom: 20px;
+    background: var(--panel);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .tab{
+    font-family:'Bitter', serif;
+    font-weight:700;
+    font-size: 14px;
+    background:transparent;
+    color: var(--cream-dim);
+    border:none;
+    padding: 9px 18px;
+    border-radius: 7px;
+    cursor:pointer;
+    transition: all .15s ease;
+  }
+  .tab:hover{ color: var(--cream); }
+  .tab.active{
+    background: var(--panel-2);
+    color: var(--cream);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .tab .count{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 9px;
+    color: var(--stamp);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{ display:flex; justify-content:center; margin-bottom: 16px; }
+  .reset-btn{
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    color: var(--cream);
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .reset-btn:hover{ background: var(--panel-2); }
+  .reset-btn:active{ transform: scale(0.97); }
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position: fixed;
+    top: 18px; left:50%;
+    transform: translate(-50%, -140%);
+    background: var(--cream);
+    color: var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    z-index: 50;
+    transition: transform .25s ease;
+    pointer-events:none;
+  }
+  .toast.show{ transform: translate(-50%, 0); }
+
+  /* ---------- Boards ---------- */
+  #boards{
+    display:grid;
+    gap: 26px 32px;
+    justify-content:center;
+    margin-bottom: 22px;
+  }
+  #boards[data-mode="termo"]{ grid-template-columns: 1fr; }
+  #boards[data-mode="dueto"]{ grid-template-columns: repeat(2, max-content); }
+  #boards[data-mode="quarteto"]{ grid-template-columns: repeat(2, max-content); }
+
+  #boards[data-mode="termo"]{ --tile: 56px; --gap: 6px; }
+  #boards[data-mode="dueto"]{ --tile: 44px; --gap: 5px; }
+  #boards[data-mode="quarteto"]{ --tile: 32px; --gap: 4px; }
+
+  .board{ position: relative; }
+  .board-badge{
+    position:absolute; top:-10px; left:-10px;
+    width:20px; height:20px; border-radius:50%;
+    background: var(--stamp);
+    color:#fff;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
+  .board.solved{ filter: saturate(1.15); }
+  .board.solved::after{
+    content:"✓ resolvida";
+    position:absolute;
+    bottom:-20px; left:0; right:0;
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    color: var(--correct);
+    letter-spacing:0.5px;
+  }
+
+  .row{
+    display:grid;
+    grid-template-columns: repeat(5, var(--tile));
+    gap: var(--gap);
+    margin-bottom: var(--gap);
+  }
+
+  .tile{
+    width: var(--tile);
+    height: var(--tile);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size: calc(var(--tile) * 0.42);
+    color: var(--cream);
+    background: var(--panel);
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 4px;
+    text-transform: uppercase;
+    user-select:none;
+    transform-style: preserve-3d;
+  }
+  .tile.filled{
+    border-color: rgba(255,255,255,0.3);
+    animation: pop .1s ease;
+  }
+  .tile.correct{ background: var(--correct); border-color: var(--correct); }
+  .tile.present{ background: var(--present); border-color: var(--present); }
+  .tile.absent{ background: var(--absent); border-color: var(--absent); }
+
+  .tile.flip{ animation: flipTile .55s ease; }
+  @keyframes flipTile{
+    0%{ transform: rotateX(0deg); }
+    50%{ transform: rotateX(90deg); }
+    100%{ transform: rotateX(0deg); }
+  }
+  @keyframes pop{
+    0%{ transform: scale(1); } 40%{ transform: scale(1.06); } 100%{ transform: scale(1); }
+  }
+  .row.shake .tile{ animation: shake .4s ease; }
+  @keyframes shake{
+    0%,100%{ transform: translateX(0); }
+    20%{ transform: translateX(-6px); }
+    40%{ transform: translateX(6px); }
+    60%{ transform: translateX(-4px); }
+    80%{ transform: translateX(4px); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .tile.flip, .row.shake .tile, .tile.filled{ animation: none !important; }
+  }
+
+  /* ---------- Banner ---------- */
+  .banner{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    background: var(--panel);
+    border: 2px dashed var(--stamp);
+    border-radius: 10px;
+    padding: 18px 26px;
+    margin-bottom: 20px;
+    max-width: 480px;
+    transform: rotate(-1deg);
+  }
+  .banner.show{ display:flex; }
+  .banner .stamp-text{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size: 20px;
+    letter-spacing: 3px;
+    color: var(--stamp);
+    text-transform: uppercase;
+    border: 3px solid var(--stamp);
+    border-radius: 6px;
+    padding: 4px 14px;
+  }
+  .banner .answers{
+    font-family:'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--cream-dim);
+    text-align:center;
+  }
+  .banner .answers b{ color: var(--cream); letter-spacing:1px; }
+  .banner .play-again{
+    margin-top:6px;
+    font-family:'Inter', sans-serif;
+    font-weight:700;
+    font-size: 13px;
+    color:#fff;
+    background: var(--stamp);
+    border:none;
+    padding: 10px 20px;
+    border-radius: 7px;
+    cursor:pointer;
+    transition: transform .1s ease, filter .15s ease;
+  }
+  .banner .play-again:hover{ filter: brightness(1.1); }
+  .banner .play-again:active{ transform: scale(0.97); }
+
+  /* ---------- Keyboard ---------- */
+  .keyboard{ display:flex; flex-direction:column; gap:8px; width:100%; max-width: 480px; }
+  .kb-row{ display:flex; gap:6px; justify-content:center; }
+  .kb-row2{ margin-left: 18px; margin-right: 18px; }
+  .key{
+    flex:1;
+    min-width: 0;
+    max-width: 40px;
+    height: 46px;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--panel-2);
+    color: var(--cream);
+    border: none;
+    border-radius: 6px;
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size: 13px;
+    cursor:pointer;
+    transition: background .15s ease, transform .08s ease;
+  }
+  .key:hover{ background: #37425a; }
+  .key:active{ transform: scale(0.94); }
+  .key.wide{ max-width: 62px; font-size: 11px; }
+  .key.correct{ background: var(--correct); color:#fff; }
+  .key.present{ background: var(--present); color:#fff; }
+  .key.absent{ background: var(--absent); color: var(--cream-dim); }
+  .key:focus-visible, .tab:focus-visible, .reset-btn:focus-visible, .play-again:focus-visible{
+    outline: 2px solid var(--stamp);
+    outline-offset: 2px;
+  }
+
+  footer{
+    margin-top: 26px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--cream-dim);
+    text-align:center;
+    opacity: 0.7;
+    max-width: 480px;
+  }
+
+  @media (max-width: 480px){
+    .title{ font-size: 32px; }
+    #boards[data-mode="termo"]{ --tile: 46px; }
+    #boards[data-mode="dueto"]{ --tile: 34px; }
+    #boards[data-mode="quarteto"]{ --tile: 26px; --gap:3px; }
+    .key{ height:42px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="app">
+    <header>
+      <h1 class="title">TERM<span class="stamp-o">O</span></h1>
+      <p class="subtitle">/ˈtɛɾmu/ — descubra a palavra de 5 letras</p>
+      <div class="legend">
+        <span><span class="chip correct"></span> letra certa, lugar certo</span>
+        <span><span class="chip present"></span> letra certa, lugar errado</span>
+        <span><span class="chip absent"></span> letra não está na palavra</span>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-mode="termo">Termo<span class="count">1 palavra · 6 chances</span></button>
+      <button class="tab" data-mode="dueto">Dueto<span class="count">2 palavras · 7 chances</span></button>
+      <button class="tab" data-mode="quarteto">Quarteto<span class="count">4 palavras · 9 chances</span></button>
+    </nav>
+
+    <div class="toolbar">
+      <button class="reset-btn" id="resetBtn">🔄 Novo jogo</button>
+    </div>
+
+    <div class="banner" id="banner">
+      <div class="stamp-text" id="bannerTitle">ACERTOU!</div>
+      <div class="answers" id="bannerAnswers"></div>
+      <button class="play-again" id="playAgainBtn">Jogar de novo</button>
+    </div>
+
+    <div id="boards" data-mode="termo"></div>
+
+    <div class="keyboard" id="keyboard">
+      <div class="kb-row" id="kbRow1"></div>
+      <div class="kb-row kb-row2" id="kbRow2"></div>
+      <div class="kb-row" id="kbRow3"></div>
+    </div>
+
+    <footer>
+      Dica: para adicionar mais palavras, edite a constante <b>WORDS</b> no código deste arquivo.
+    </footer>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------------------------------------------------
+     Lista de palavras (5 letras, sem acento, maiúsculas).
+     Sinta-se à vontade para adicionar/remover palavras aqui —
+     a mesma lista é usada como palavras-resposta e como
+     validação de palpites.
+  --------------------------------------------------------- */
+  const WORDS = [
+    "CARTA","PORTA","LIVRO","MUNDO","FORTE","VERDE","PRETO","AMIGO","TEMPO","CAMPO",
+    "NOITE","FESTA","MOEDA","PEDRA","TERRA","FRUTA","LOUCO","RURAL","NORTE","LEITE",
+    "FALAR","FAZER","BEBER","SORTE","PONTE","DENTE","FONTE","GENTE","MONTE","QUEDA",
+    "VOLTA","FALHA","LINHA","MALHA","FILHO","FOLHA","GALHO","BOLSO","CARRO","BURRO",
+    "FERRO","BARCO","MARCO","LARGO","CARGO","GRAVE","NUVEM","CHUVA","PRAIA","AREIA",
+    "BANHO","CARNE","PEIXE","CALOR","SUAVE","FELIZ","AMIGA","NOIVA","NOIVO","VELHO",
+    "VIRAR","MORAR","MEDIR","VIVER","SUBIR","ABRIR","PEDIR","OUVIR","DIZER","FICAR",
+    "DEIXA","CHEGA","ANDAR","ENTRA","MOVER","TOMAR","LEVAR","CRIAR","TRAIR","DORME",
+    "PARTE","PARTO","MORTE","CORTE","TORRE","TURMA","PRAZO","PRECO","RODAR","SONHO",
+    "SONHA","GANHO","GANHA","ATRAS","APOIO","CIUME","TELHA","FOGAO","GARFO","PRATO",
+    "PLANO","PLANA","CLARO","CLARA","LENTO","LENTA","CURTO","CURTA","LARGA","BRAVO",
+    "BRAVA","AZEDO","MORNO","SALSA","HORTA","FLORA","FAUNA","CRAVO","LIRIO","COBRE"
+  ];
+
+  const MODES = {
+    termo:    { label: "Termo",    boards: 1, maxGuesses: 6 },
+    dueto:    { label: "Dueto",    boards: 2, maxGuesses: 7 },
+    quarteto: { label: "Quarteto", boards: 4, maxGuesses: 9 }
+  };
+
+  const STATUS_ORDER = { absent: 0, present: 1, correct: 2 };
+
+  let state = null;
+  let msgTimer = null;
+
+  const boardsEl = document.getElementById("boards");
+  const toastEl = document.getElementById("toast");
+  const bannerEl = document.getElementById("banner");
+  const bannerTitleEl = document.getElementById("bannerTitle");
+  const bannerAnswersEl = document.getElementById("bannerAnswers");
+  const tabsEl = document.getElementById("tabs");
+
+  /* ---------------- Utilidades ---------------- */
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1; i>0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function pickWords(n){
+    return shuffle(WORDS).slice(0, n);
+  }
+
+  function evaluateGuess(guess, answer){
+    const result = new Array(5).fill("absent");
+    const answerArr = answer.split("");
+    const guessArr = guess.split("");
+
+    for(let i=0;i<5;i++){
+      if(guessArr[i] === answerArr[i]){
+        result[i] = "correct";
+        answerArr[i] = null;
+      }
+    }
+    const freq = {};
+    answerArr.forEach(ch => { if(ch) freq[ch] = (freq[ch]||0) + 1; });
+
+    for(let i=0;i<5;i++){
+      if(result[i] === "correct") continue;
+      const ch = guessArr[i];
+      if(freq[ch] > 0){
+        result[i] = "present";
+        freq[ch]--;
+      }
+    }
+    return result;
+  }
+
+  function upgradeStatus(oldStatus, newStatus){
+    if(!oldStatus || STATUS_ORDER[newStatus] > STATUS_ORDER[oldStatus]) return newStatus;
+    return oldStatus;
+  }
+
+  function showMessage(text, duration){
+    toastEl.textContent = text;
+    toastEl.classList.add("show");
+    clearTimeout(msgTimer);
+    msgTimer = setTimeout(()=> toastEl.classList.remove("show"), duration || 1500);
+  }
+
+  /* ---------------- Construção do tabuleiro ---------------- */
+
+  function buildBoards(){
+    boardsEl.innerHTML = "";
+    boardsEl.dataset.mode = state.mode;
+
+    state.boards.forEach((board, bIdx) => {
+      const boardEl = document.createElement("div");
+      boardEl.className = "board";
+
+      if(state.boards.length > 1){
+        const badge = document.createElement("div");
+        badge.className = "board-badge";
+        badge.textContent = bIdx + 1;
+        boardEl.appendChild(badge);
+      }
+
+      board.tileRows = [];
+      for(let r=0; r<state.maxGuesses; r++){
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+        const tiles = [];
+        for(let c=0; c<5; c++){
+          const tileEl = document.createElement("div");
+          tileEl.className = "tile";
+          rowEl.appendChild(tileEl);
+          tiles.push(tileEl);
+        }
+        boardEl.appendChild(rowEl);
+        board.rowEls = board.rowEls || [];
+        board.rowEls.push(rowEl);
+        board.tileRows.push(tiles);
+      }
+      boardEl.dataset.solved = "false";
+      board.boardEl = boardEl;
+      boardsEl.appendChild(boardEl);
+    });
+  }
+
+  function buildKeyboard(){
+    const layout = [
+      ["Q","W","E","R","T","Y","U","I","O","P"],
+      ["A","S","D","F","G","H","J","K","L"],
+      ["ENTER","Z","X","C","V","B","N","M","⌫"]
+    ];
+    const rowIds = ["kbRow1","kbRow2","kbRow3"];
+    layout.forEach((row, i) => {
+      const rowEl = document.getElementById(rowIds[i]);
+      rowEl.innerHTML = "";
+      row.forEach(key => {
+        const btn = document.createElement("button");
+        btn.className = "key";
+        btn.textContent = key;
+        btn.dataset.key = key;
+        if(key === "ENTER" || key === "⌫") btn.classList.add("wide");
+        btn.addEventListener("click", () => handleKeyInput(key));
+        rowEl.appendChild(btn);
+      });
+    });
+  }
+
+  function updateKeyboardVisual(){
+    document.querySelectorAll(".key").forEach(btn => {
+      const k = btn.dataset.key;
+      const status = state.keyboardStatus[k];
+      btn.classList.remove("correct","present","absent");
+      if(status) btn.classList.add(status);
+    });
+  }
+
+  /* ---------------- Jogo ---------------- */
+
+  function initGame(modeKey){
+    const cfg = MODES[modeKey];
+    const words = pickWords(cfg.boards);
+
+    state = {
+      mode: modeKey,
+      maxGuesses: cfg.maxGuesses,
+      attempts: 0,
+      currentGuess: "",
+      finished: false,
+      won: false,
+      keyboardStatus: {},
+      boards: words.map(w => ({ answer: w, guesses: [], results: [], solved: false }))
+    };
+
+    document.body.dataset.mode = modeKey;
+    bannerEl.classList.remove("show");
+    buildBoards();
+    updateKeyboardVisual();
+  }
+
+  function updateCurrentRowPreview(){
+    state.boards.forEach(board => {
+      if(board.solved || board.guesses.length >= state.maxGuesses) return;
+      const rowIdx = board.guesses.length;
+      const tiles = board.tileRows[rowIdx];
+      for(let c=0; c<5; c++){
+        const ch = state.currentGuess[c] || "";
+        tiles[c].textContent = ch;
+        tiles[c].classList.toggle("filled", !!ch);
+      }
+    });
+  }
+
+  function shakeCurrentRow(){
+    state.boards.forEach(board => {
+      if(board.solved || board.guesses.length >= state.maxGuesses) return;
+      const rowIdx = board.guesses.length;
+      const rowEl = board.rowEls[rowIdx];
+      rowEl.classList.add("shake");
+      setTimeout(()=> rowEl.classList.remove("shake"), 420);
+    });
+  }
+
+  function animateRow(board, rowIdx, guess, result){
+    const tiles = board.tileRows[rowIdx];
+    tiles.forEach((tile, i) => {
+      tile.textContent = guess[i];
+      tile.style.animationDelay = (i*120) + "ms";
+      tile.classList.add("flip");
+      setTimeout(() => {
+        tile.classList.add(result[i]);
+      }, i*120 + 260);
+    });
+  }
+
+  function handleKeyInput(rawKey){
+    if(!state || state.finished) return;
+    const key = rawKey.toUpperCase();
+
+    if(key === "ENTER"){
+      submitGuess();
+      return;
+    }
+    if(key === "BACKSPACE" || key === "⌫" || key === "DEL"){
+      state.currentGuess = state.currentGuess.slice(0, -1);
+      updateCurrentRowPreview();
+      return;
+    }
+    if(/^[A-Z]$/.test(key) && state.currentGuess.length < 5){
+      state.currentGuess += key;
+      updateCurrentRowPreview();
+    }
+  }
+
+  function submitGuess(){
+    if(state.currentGuess.length < 5){
+      showMessage("Palavra incompleta");
+      shakeCurrentRow();
+      return;
+    }
+
+    const guess = state.currentGuess;
+    let maxDelay = 0;
+
+    state.boards.forEach(board => {
+      if(board.solved || board.guesses.length >= state.maxGuesses) return;
+      const rowIdx = board.guesses.length;
+      const result = evaluateGuess(guess, board.answer);
+      board.guesses.push(guess);
+      board.results.push(result);
+      animateRow(board, rowIdx, guess, result);
+      maxDelay = Math.max(maxDelay, 4*120 + 260 + 400);
+
+      guess.split("").forEach((ch, i) => {
+        state.keyboardStatus[ch] = upgradeStatus(state.keyboardStatus[ch], result[i]);
+      });
+
+      if(result.every(s => s === "correct")){
+        board.solved = true;
+        board.boardEl.classList.add("solved");
+      }
+    });
+
+    state.attempts++;
+    state.currentGuess = "";
+    updateKeyboardVisual();
+
+    const allSolved = state.boards.every(b => b.solved);
+    const outOfTries = state.attempts >= state.maxGuesses;
+
+    if(allSolved){
+      state.finished = true;
+      state.won = true;
+    } else if(outOfTries){
+      state.finished = true;
+      state.won = false;
+    }
+
+    if(state.finished){
+      setTimeout(showBanner, maxDelay);
+    } else {
+      updateCurrentRowPreview();
+    }
+  }
+
+  function showBanner(){
+    bannerTitleEl.textContent = state.won ? "Acertou!" : "Fim de jogo";
+    const list = state.boards.map(b => b.answer).join("  ·  ");
+    bannerAnswersEl.innerHTML = (state.boards.length > 1 ? "Palavras: " : "Palavra: ") + "<b>" + list + "</b>";
+    bannerEl.classList.add("show");
+  }
+
+  function setActiveTab(modeKey){
+    document.querySelectorAll(".tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.mode === modeKey);
+    });
+  }
+
+  /* ---------------- Eventos ---------------- */
+
+  tabsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if(!btn) return;
+    const modeKey = btn.dataset.mode;
+    if(state && modeKey === state.mode) return;
+    setActiveTab(modeKey);
+    initGame(modeKey);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    initGame(state.mode);
+  });
+  document.getElementById("playAgainBtn").addEventListener("click", () => {
+    initGame(state.mode);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if(!state || state.finished){
+      // Enter no banner reinicia rapidamente
+      if(state && state.finished && e.key === "Enter"){
+        initGame(state.mode);
+      }
+      return;
+    }
+    if(e.key === "Enter"){ e.preventDefault(); handleKeyInput("ENTER"); return; }
+    if(e.key === "Backspace"){ e.preventDefault(); handleKeyInput("⌫"); return; }
+    if(/^[a-zA-Z]$/.test(e.key)){ handleKeyInput(e.key); }
+  });
+
+  /* ---------------- Início ---------------- */
+
+  buildKeyboard();
+  initGame("termo");
+
+})();
+</script>
+</body>
+</html>
