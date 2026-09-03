@@ -153,14 +153,19 @@
     gap: 26px 32px;
     justify-content:center;
     margin-bottom: 22px;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
   #boards[data-mode="termo"]{ grid-template-columns: 1fr; }
   #boards[data-mode="dueto"]{ grid-template-columns: repeat(2, max-content); }
-  #boards[data-mode="quarteto"]{ grid-template-columns: repeat(2, max-content); }
+  #boards[data-mode="quarteto"]{ grid-template-columns: repeat(4, max-content); gap: 18px; }
 
   #boards[data-mode="termo"]{ --tile: 56px; --gap: 6px; }
   #boards[data-mode="dueto"]{ --tile: 44px; --gap: 5px; }
-  #boards[data-mode="quarteto"]{ --tile: 32px; --gap: 4px; }
+  #boards[data-mode="quarteto"]{ --tile: 42px; --gap: 5px; }
+
+  body[data-mode="quarteto"] .app{ max-width: 980px; }
 
   .board{ position: relative; }
   .board-badge{
@@ -213,6 +218,11 @@
   .tile.filled{
     border-color: rgba(255,255,255,0.3);
     animation: pop .1s ease;
+  }
+  .tile.cursor{
+    border-color: var(--stamp);
+    box-shadow: 0 0 0 2px rgba(193,68,58,0.3);
+    cursor: pointer;
   }
   .tile.correct{ background: var(--correct); border-color: var(--correct); }
   .tile.present{ background: var(--present); border-color: var(--present); }
@@ -334,7 +344,7 @@
     .title{ font-size: 32px; }
     #boards[data-mode="termo"]{ --tile: 46px; }
     #boards[data-mode="dueto"]{ --tile: 34px; }
-    #boards[data-mode="quarteto"]{ --tile: 26px; --gap:3px; }
+    #boards[data-mode="quarteto"]{ --tile: 32px; --gap:4px; gap: 10px; }
     .key{ height:42px; font-size:12px; }
   }
 </style>
@@ -425,7 +435,7 @@
     "GRAXA","GRITA","GRUPO","GUIAR","HABIL","HAVIA","HEROI","HOMEM","HONRA","HORAS",
     "HOTEL","HUMOR","IDEIA","IDOLO","IGUAL","ILESO","IMPAR","IMPOR","INDIO","IRMAO",
     "JANTA","JEITO","JOGAR","JOVEM","JUIZO","JULHO","JUNTA","JUNTO","JURAR","JUSTA",
-    "JUSTO","LABIO", "TESTE"
+    "JUSTO","LABIO"
   ];
 
   const MODES = {
@@ -519,10 +529,12 @@
       for(let r=0; r<state.maxGuesses; r++){
         const rowEl = document.createElement("div");
         rowEl.className = "row";
+        rowEl.dataset.row = r;
         const tiles = [];
         for(let c=0; c<5; c++){
           const tileEl = document.createElement("div");
           tileEl.className = "tile";
+          tileEl.dataset.col = c;
           rowEl.appendChild(tileEl);
           tiles.push(tileEl);
         }
@@ -578,7 +590,8 @@
       mode: modeKey,
       maxGuesses: cfg.maxGuesses,
       attempts: 0,
-      currentGuess: "",
+      currentGuess: ["","","","",""],
+      cursor: 0,
       finished: false,
       won: false,
       keyboardStatus: {},
@@ -600,8 +613,24 @@
         const ch = state.currentGuess[c] || "";
         tiles[c].textContent = ch;
         tiles[c].classList.toggle("filled", !!ch);
+        tiles[c].classList.toggle("cursor", c === state.cursor);
       }
     });
+  }
+
+  function moveCursor(delta){
+    if(!state || state.finished) return;
+    const next = state.cursor + delta;
+    if(next < 0 || next > 4) return;
+    state.cursor = next;
+    updateCurrentRowPreview();
+  }
+
+  function setCursor(pos){
+    if(!state || state.finished) return;
+    if(pos < 0 || pos > 4) return;
+    state.cursor = pos;
+    updateCurrentRowPreview();
   }
 
   function shakeCurrentRow(){
@@ -635,24 +664,32 @@
       return;
     }
     if(key === "BACKSPACE" || key === "⌫" || key === "DEL"){
-      state.currentGuess = state.currentGuess.slice(0, -1);
+      if(state.currentGuess[state.cursor]){
+        // casa atual tem letra: apaga ela e fica no lugar
+        state.currentGuess[state.cursor] = "";
+      } else if(state.cursor > 0){
+        // casa atual vazia: volta uma casa e apaga
+        state.cursor--;
+        state.currentGuess[state.cursor] = "";
+      }
       updateCurrentRowPreview();
       return;
     }
-    if(/^[A-Z]$/.test(key) && state.currentGuess.length < 5){
-      state.currentGuess += key;
+    if(/^[A-Z]$/.test(key)){
+      state.currentGuess[state.cursor] = key;
+      if(state.cursor < 4) state.cursor++;
       updateCurrentRowPreview();
     }
   }
 
   function submitGuess(){
-    if(state.currentGuess.length < 5){
+    if(state.currentGuess.some(ch => !ch)){
       showMessage("Palavra incompleta");
       shakeCurrentRow();
       return;
     }
 
-    const guess = state.currentGuess;
+    const guess = state.currentGuess.join("");
     let maxDelay = 0;
 
     state.boards.forEach(board => {
@@ -675,7 +712,8 @@
     });
 
     state.attempts++;
-    state.currentGuess = "";
+    state.currentGuess = ["","","","",""];
+    state.cursor = 0;
     updateKeyboardVisual();
 
     const allSolved = state.boards.every(b => b.solved);
@@ -737,7 +775,22 @@
     }
     if(e.key === "Enter"){ e.preventDefault(); handleKeyInput("ENTER"); return; }
     if(e.key === "Backspace"){ e.preventDefault(); handleKeyInput("⌫"); return; }
+    if(e.key === "ArrowLeft"){ e.preventDefault(); moveCursor(-1); return; }
+    if(e.key === "ArrowRight"){ e.preventDefault(); moveCursor(1); return; }
     if(/^[a-zA-Z]$/.test(e.key)){ handleKeyInput(e.key); }
+  });
+
+  boardsEl.addEventListener("click", (e) => {
+    if(!state || state.finished) return;
+    const tileEl = e.target.closest(".tile");
+    if(!tileEl) return;
+    const rowEl = tileEl.closest(".row");
+    const boardEl = tileEl.closest(".board");
+    const board = state.boards.find(b => b.boardEl === boardEl);
+    if(!board || board.solved) return;
+    const rowIdx = Number(rowEl.dataset.row);
+    if(rowIdx !== board.guesses.length) return; // só a linha ativa pode ser clicada
+    setCursor(Number(tileEl.dataset.col));
   });
 
   /* ---------------- Início ---------------- */
